@@ -40,18 +40,20 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-uint16_t contar=0;
+int i=0;                        /*variable para contar*/
+int tres_segundos=720000;    /*número equivalente a 3 segundos según frecuencia del clock*/
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-
+int funcion_contador();     /* Función que cuenta el tiempo para cerrar la puera*/
+void cerrar_puerta();       /* Función que cierra la puerta*/
+void abrir_puerta();        /* Función que abre la puerta*/
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -67,7 +69,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
 
   /* USER CODE END 1 */
 
@@ -89,15 +90,34 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim2);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if (HAL_GPIO_ReadPin (GPIOB, Tec3_Pin) == (GPIO_PIN_SET) && HAL_GPIO_ReadPin(GPIOB, Tec1_Pin) == (GPIO_PIN_RESET))/*Si la puerta está totalmente abierta y no hay presencia, empieza a contar el contador*/
+	  {
+		  funcion_contador(i); /*llamado a la función que aumenta el contador*/
+		  i=funcion_contador(i);
+		  if (i >= tres_segundos) /*cuanto el contador llega a 3 segundos, llama a la función que cierra la puerta*/
+		  {
+			  cerrar_puerta();
+		  }
+	   }
+	  else /*en caso de que puerta no esté completamente abierta o si hay presencia*/
+	  {
+		  i=0; /*se resetea el contador a cero*/
+	  }
+	  if (HAL_GPIO_ReadPin(GPIOB, Tec1_Pin) == (GPIO_PIN_SET)) /*si se detecta presencia*/
+	  {
+		  abrir_puerta(); /*llama a la función para abrir la puerta*/
+	  }
+
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -145,51 +165,6 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief TIM2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM2_Init(void)
-{
-
-  /* USER CODE BEGIN TIM2_Init 0 */
-
-  /* USER CODE END TIM2_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM2_Init 1 */
-
-  /* USER CODE END TIM2_Init 1 */
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 35999;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 399;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM2_Init 2 */
-
-  /* USER CODE END TIM2_Init 2 */
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -201,62 +176,65 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, Led1_Pin|Led2_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  /*Configure GPIO pins : Led1_Pin Led2_Pin */
+  GPIO_InitStruct.Pin = Led1_Pin|Led2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA1 PA2 PA3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  /*Configure GPIO pins : Tec1_Pin Tec2_Pin Tec3_Pin */
+  GPIO_InitStruct.Pin = Tec1_Pin|Tec2_Pin|Tec3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+int funcion_contador(i)
 {
-	  if(htim->Instance == TIM2)
-	  {
-		  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-		contar ++;
-		if (contar>3)
-		{
-		HAL_GPIO_WritePin (GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin (GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin (GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
-		contar=0;
-		}
-		if(contar == 1)
-		{
-			HAL_GPIO_WritePin (GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
-		}
-		if(contar == 2)
-		{
-			HAL_GPIO_WritePin (GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
-		}
-		if(contar == 3)
-		{
-			HAL_GPIO_WritePin (GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
-		}
-		}
-	  }
+	i=i+1;
+	return i;
+
+}
+void cerrar_puerta()
+{
+	while (HAL_GPIO_ReadPin (GPIOB, Tec1_Pin)!= (GPIO_PIN_SET) && (HAL_GPIO_ReadPin (GPIOB, Tec2_Pin)!= GPIO_PIN_SET))/*en caso de no haber presencia y que la puerta no llegue a final de carrera cerrada*/
+	{
+		HAL_GPIO_WritePin (GPIOB, Led1_Pin, GPIO_PIN_RESET); /*dirección del motor -> cerrando*/
+		HAL_GPIO_WritePin (GPIOB, Led2_Pin, GPIO_PIN_SET); /*estado del motor -> encendido*/
+	}
+
+	/*caso de que se detecte presencia o se llegue al final de carrera cerrado*/
+    HAL_GPIO_WritePin (GPIOB, Led2_Pin, GPIO_PIN_RESET); /*estado del motor -> apagado*/
+
+
+}
+
+void abrir_puerta()
+{
+	if ((HAL_GPIO_ReadPin (GPIOB, Tec3_Pin))!=(GPIO_PIN_SET)) /*en caso de no se detecte el final de carrera abierto*/
+	{
+		HAL_GPIO_WritePin (GPIOB, Led1_Pin, GPIO_PIN_SET);/*dirección del motor -> abriendo*/
+		HAL_GPIO_WritePin (GPIOB, Led2_Pin, GPIO_PIN_SET); /*estado del motor -> encendido*/
+	}
+	else /*en caso de que se detecte fin de carrea abierto*/
+	{
+		HAL_GPIO_WritePin (GPIOB, Led2_Pin, GPIO_PIN_RESET); /*estado del motor -> apagado*/
+	}
+
+}
+
 
 /* USER CODE END 4 */
 
